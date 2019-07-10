@@ -1,11 +1,11 @@
 # Docker Makefile project
 
 This project provides a convention over configuration
-universal build `Makefile`
+universal build `Makefile` for [docker](https://www.docker.com/) projects.
 
 ## Blog
 
-This blog post tells all about it.
+This [blog](http://ivo2u.nl/oE) post tells all about it.
 
 ## Usage
 
