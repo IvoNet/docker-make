@@ -27,7 +27,7 @@ make hello-world
 
 if you use this convention everything should work just fine:
 
-``text
+```text
 .
 ├── Makefile
 ├── makefile.env
