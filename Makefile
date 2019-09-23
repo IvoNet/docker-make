@@ -42,7 +42,7 @@ projects: ## prints which projects have build targets
 		echo $$fo | awk '{printf "\033[36mrelease-%-22s\033[0m Releases %s\n", $$1, $$1}';\
 	done
 
-$(IMAGES): %: ## builds a specific project by its folder name
+$(IMAGES): %: ## builds a specific project by its directory name
 	docker build -t $(REGISTRY)/$@ $(subst :,/,$@)
 
 $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
@@ -124,6 +124,23 @@ rmi-latest: ## Removes all the local images from this project with the 'latest' 
 			if [ $(REGISTRY)/$$img:latest == $$cname ];                       \
 			then                                                              \
 				docker rmi $$cname 2>/dev/null;                               \
+			fi                                                                \
+		done                                                                  \
+	done
+
+rmi-base-images: ## Removes all the base (FROM) images used in the projects
+	@echo "Removing all the base (FROM) images used in the projects";         \
+	baseimgs=$$(find . -type f -name Dockerfile -exec grep ^FROM {} \; | sed 's/FROM //g');\
+	for base in $$baseimgs;                                                   \
+	do                                                                        \
+	    echo $$base;                                                          \
+		for cont in $$(docker images -q);                                     \
+		do                                                                    \
+		    cname=$$(docker inspect $$cont|jq '.[0].RepoTags[0]'|sed 's/\"//g') ; \
+			if [ $$base == $$cname ];                                         \
+			then                                                              \
+        	    echo "Removing base-image: $$base";                           \
+				docker rmi $$base 2>/dev/null;                                \
 			fi                                                                \
 		done                                                                  \
 	done
