@@ -100,6 +100,9 @@ clean: rm-containers rmi-version rmi-latest ## Cleans up the mess you made
 		docker rmi $$img;                                                     \
 	done
 
+deep-clean: clean rmi-base-images ## same as clean plus removal of base images
+	@echo "Also removes base images";
+
 rmi-version: ## Removes all the local images from this project with the defined version
 	@echo Removing all images with version $(VERSION) from this project;      \
 	for cont in $$(docker images -q);                                         \
