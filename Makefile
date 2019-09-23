@@ -31,7 +31,8 @@ RELEASE_IMAGE_TARGETS=$(addprefix release-,$(IMAGES))
 .PHONY: help $(IMAGES) $(RELEASE_IMAGE_TARGETS)
 
 help: projects ## This help
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST);
+	@echo ">>> make sure to install 'jq'"
 
 .DEFAULT_GOAL := help
 
