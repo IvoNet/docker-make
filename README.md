@@ -7,6 +7,10 @@ universal build `Makefile` for [docker](https://www.docker.com/) projects.
 
 This [blog](http://ivo2u.nl/oE) post tells all about it.
 
+## Prerequisites
+
+* install jq (`brew install jq`)
+
 ## Usage
 
 ```bash
