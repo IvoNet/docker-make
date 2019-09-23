@@ -9,7 +9,8 @@ This [blog](http://ivo2u.nl/oE) post tells all about it.
 
 ## Prerequisites
 
-* install jq (macOs: `brew install jq`)
+* install [jq](https://stedolan.github.io/jq/download/) (macOs: `brew install jq` if brew is installed)
+
 
 ## Usage
 
