@@ -32,7 +32,7 @@ RELEASE_IMAGE_TARGETS=$(addprefix release-,$(IMAGES))
 
 help: projects ## This help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST);
-	@echo ">>> make sure to install 'jq'"
+	@echo ">>> make sure to have 'jq' installed."
 
 .DEFAULT_GOAL := help
 
@@ -85,7 +85,7 @@ publish-latest:
 		docker push $(REGISTRY)/$$img:latest ;                                \
 	done
 
-publish-version: tag 
+publish-version: tag
 	@for img in $(IMAGES); do                                                 \
 		docker push $(REGISTRY)/$$img:$(VERSION) ;                            \
 	done
@@ -137,7 +137,13 @@ rmi-base-images: ## Removes all the base (FROM) images used in the projects
 	baseimgs=$$(find . -type f -name Dockerfile -exec grep ^FROM {} \; | sed 's/FROM //g');\
 	for base in $$baseimgs;                                                   \
 	do                                                                        \
-	    echo $$base;                                                          \
+	    noversion=$$(echo $$base|sed 's/:.*//');                              \
+	    if [ "$$noversion" == "$$base" ];                                     \
+	    then                                                                  \
+	       echo "No version fount, assumong latest";                          \
+	       base="$$base:latest";                                              \
+	    fi;                                                                   \
+	    echo "$$base";                                                        \
 		for cont in $$(docker images -q);                                     \
 		do                                                                    \
 		    cname=$$(docker inspect $$cont|jq '.[0].RepoTags[0]'|sed 's/\"//g') ; \
