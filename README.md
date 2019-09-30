@@ -20,6 +20,7 @@ cd example-project
 echo "FROM busybox\nCMD [\"echo\", \"Hello, world!\"]" >hello-world/Dockerfile
 echo "VERSION=1.0\nREGISTRY=$USER">makefile.env
 wget https://raw.githubusercontent.com/IvoNet/docker-make/master/Makefile
+wget https://raw.githubusercontent.com/IvoNet/docker-make/master/Makefile.env
 # Show help
 make help
 # make all projects
