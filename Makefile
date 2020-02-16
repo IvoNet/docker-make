@@ -24,6 +24,8 @@ export $(shell sed 's/=.*//' $(cnf))
 DOCKERFILES=$(shell find * -type f -name Dockerfile)
 IMAGES=$(subst /,\:,$(subst /Dockerfile,,$(DOCKERFILES)))
 RELEASE_IMAGE_TARGETS=$(addprefix release-,$(IMAGES))
+TAG_IMAGE_TARGETS=$(addprefix tag-,$(IMAGES))
+VERSION_IMAGE_TARGETS=$(addprefix version-,$(IMAGES))
 
 # HELP
 # This will output the help for each task
@@ -41,6 +43,7 @@ projects: ## prints which projects have build targets
 	do                                                                                    \
 		echo $$fo | awk '{printf "\033[36m%-30s\033[0m Builds %s\n", $$1, $$1}';          \
 		echo $$fo | awk '{printf "\033[36mrelease-%-22s\033[0m Releases %s\n", $$1, $$1}';\
+		echo $$fo | awk '{printf "\033[36mtag-%-26s\033[0m Tags %s\n", $$1, $$1}';\
 	done
 
 $(IMAGES): %: ## builds a specific project by its directory name
@@ -52,6 +55,19 @@ $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$(VERSION); \
 	docker push $(REGISTRY)/$$project:latest;                                 \
 	docker push $(REGISTRY)/$$project:$(VERSION);
+
+$(TAG_IMAGE_TARGETS): %: ## tag a single image from the project
+	@project=$(subst tag-,,$@);                                               \
+	versionfile="$$project/VERSION";                                          \
+	MY_APP_VERSION=$(VERSION);                                                \
+	if [ -a "$$versionfile" ];                                                \
+	then                                                                      \
+		MY_APP_VERSION=`cat $$versionfile`;                                   \
+		echo "$(REGISTRY)/$$project version override: $$MY_APP_VERSION";      \
+	fi;                                                                       \
+	echo "Tagging $$project as: $(REGISTRY)/$$project:$$MY_APP_VERSION";      \
+	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$$MY_APP_VERSION;
+
 
 all: build  ## Build all the images in the project as 'latest'
 
@@ -80,22 +96,20 @@ tag: ## Tags all the images to the VERSION as found int makefile.env
 		docker tag $(REGISTRY)/$$img:latest $(REGISTRY)/$$img:$$MY_APP_VERSION;\
 	done
 
-poc: ## Tags all the images to the VERSION as found int makefile.env
+version: ## Prints all project versions (created if tagged)
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
 	    versionfile="$$img/VERSION";                                          \
-	    echo $$versionfile;                                                   \
 		MY_APP_VERSION=$(VERSION);                                            \
-		echo $$MY_APP_VERSION;                                                \
 		if [ -a "$$versionfile" ];                                            \
 		then                                                                  \
 			MY_APP_VERSION=`cat $$versionfile`;                               \
-		    echo "Poject version override: $$MY_APP_VERSION";                 \
+		    echo "$(REGISTRY)/$$img:$$MY_APP_VERSION";                         \
 		fi;                                                                   \
 	done
 
 
-version: build tag ## Builds and versions all the images in this project
+versions: build tag ## Builds and versions all the images in this project
 
 release: build-nc publish ## Make a release by building and publishing the `{version}` and `latest` tagged containers to the registry
 
@@ -119,7 +133,7 @@ publish-version: tag
 		docker push $(REGISTRY)/$$img:$$MY_APP_VERSION ;                      \
 	done
 
-clean: rm-containers rmi-version rmi-latest ## Cleans up the mess you made
+clean: rm-containers rmi ## Cleans up the mess you made
 	@echo "Cleaning dangling images in general";                              \
 	for img in $(docker images --filter dangling=true -q); do                 \
 		echo Deleting dangling image $$img;                                   \
@@ -133,11 +147,13 @@ clean: rm-containers rmi-version rmi-latest ## Cleans up the mess you made
 deep-clean: clean rmi-base-images ## same as clean plus removal of base images
 	@echo "Also removes base images";
 
+rmi: rmi-version rmi-latest ## Removes all images from this project with their versions
+	@echo "Done."
+
 rmi-version: ## Removes all the local images from this project with the defined version
 	@echo Removing all current versions for this project;                     \
 	for cont in $$(docker images -q);                                         \
 	do                                                                        \
-		cname=$$(docker inspect $$cont|jq '.[0].RepoTags[0]'|sed 's/\"//g');  \
 		for img in $(IMAGES);                                                 \
 		do                                                                    \
 			versionfile="$$img/VERSION";                                      \
@@ -146,23 +162,24 @@ rmi-version: ## Removes all the local images from this project with the defined 
 			then                                                              \
 				MY_APP_VERSION=`cat $$versionfile`;                           \
 			fi;                                                               \
-			if [ $(REGISTRY)/$$img:$$MY_APP_VERSION == $$cname ];             \
+			idx=$$(docker inspect $$cont|jq ".[0].RepoTags | index(\"$(REGISTRY)/$$img:$$MY_APP_VERSION\")");\
+			if [ "$$idx" != "null" ];                                         \
 			then                                                              \
-				docker rmi $$cname 2>/dev/null;                               \
-			fi                                                                \
-		done                                                                  \
+				docker rmi $(REGISTRY)/$$img:$$MY_APP_VERSION 2>/dev/null;    \
+			fi;                                                               \
+		done;                                                                 \
 	done
 
 rmi-latest: ## Removes all the local images from this project with the 'latest' tag
 	@echo Removing all images with version 'latest' from this project;        \
 	for cont in $$(docker images -q);                                         \
 	do                                                                        \
-		cname=$$(docker inspect $$cont|jq '.[0].RepoTags[0]'|sed 's/\"//g') ; \
 		for img in $(IMAGES);                                                 \
 		do                                                                    \
-			if [ $(REGISTRY)/$$img:latest == $$cname ];                       \
+			idx=$$(docker inspect $$cont|jq ".[0].RepoTags | index(\"$(REGISTRY)/$$img:latest\")");\
+			if [ "$$idx" != "null" ];                                         \
 			then                                                              \
-				docker rmi $$cname 2>/dev/null;                               \
+				docker rmi $(REGISTRY)/$$img:latest 2>/dev/null;              \
 			fi                                                                \
 		done                                                                  \
 	done
@@ -201,6 +218,17 @@ rm-containers: stop ## Stops and removes running containers based on the images 
 			then                                                              \
 				echo Removing container: $$cname -\> $$cont;                  \
 				docker rm -f $$cont >/dev/null;                               \
+			fi;                                                               \
+			versionfile="$$img/VERSION";                                      \
+			MY_APP_VERSION=$(VERSION);                                        \
+			if [ -a "$$versionfile" ];                                        \
+			then                                                              \
+				MY_APP_VERSION=`cat $$versionfile`;                           \
+			fi;                                                               \
+			if [ $(REGISTRY)/$$img:$$MY_APP_VERSION == $$cname ];             \
+			then                                                              \
+				echo Stopping container: $$cname -\> $$cont;                  \
+				docker rm -f $$cont >/dev/null;                               \
 			fi                                                                \
 		done                                                                  \
 	done
@@ -213,6 +241,17 @@ stop: ## Stops all running containers based on the images in this project
 		for img in $(IMAGES);                                                 \
 		do                                                                    \
 			if [ $(REGISTRY)/$$img == $$cname ];                              \
+			then                                                              \
+				echo Stopping container: $$cname -\> $$cont;                  \
+				docker stop $$cont >/dev/null;                                \
+			fi;                                                               \
+			versionfile="$$img/VERSION";                                      \
+			MY_APP_VERSION=$(VERSION);                                        \
+			if [ -a "$$versionfile" ];                                        \
+			then                                                              \
+				MY_APP_VERSION=`cat $$versionfile`;                           \
+			fi;                                                               \
+			if [ $(REGISTRY)/$$img:$$MY_APP_VERSION == $$cname ];             \
 			then                                                              \
 				echo Stopping container: $$cname -\> $$cont;                  \
 				docker stop $$cont >/dev/null;                                \
