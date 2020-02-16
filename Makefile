@@ -148,7 +148,6 @@ deep-clean: clean rmi-base-images ## same as clean plus removal of base images
 	@echo "Also removes base images";
 
 rmi: rmi-version rmi-latest ## Removes all images from this project with their versions
-	@echo "Done."
 
 rmi-version: ## Removes all the local images from this project with the defined version
 	@echo Removing all current versions for this project;                     \
