@@ -42,8 +42,8 @@ projects: ## prints which projects have build targets
 	@for fo in $(IMAGES);                                                                 \
 	do                                                                                    \
 		echo $$fo | awk '{printf "\033[36m%-30s\033[0m Builds %s\n", $$1, $$1}';          \
+		echo $$fo | awk '{printf "\033[36mtag-%-26s\033[0m Tags %s\n", $$1, $$1}';        \
 		echo $$fo | awk '{printf "\033[36mrelease-%-22s\033[0m Releases %s\n", $$1, $$1}';\
-		echo $$fo | awk '{printf "\033[36mtag-%-26s\033[0m Tags %s\n", $$1, $$1}';\
 	done
 
 $(IMAGES): %: ## builds a specific project by its directory name
