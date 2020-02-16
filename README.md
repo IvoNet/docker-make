@@ -43,6 +43,7 @@ if you use this convention everything should work just fine:
 │   └── Dockerfile
 ├── node
 │   ├── Dockerfile
+│   ├── VERSION
 │   └── src
 │       ├── index.js
 │       ├── index.html
@@ -52,5 +53,10 @@ if you use this convention everything should work just fine:
     
 ```
 
+
+## VERSION
+
+if you put a `VERSION` file in a folder with a `Dockerfile` and put only a version in it it will override the
+default version as described in the `makefile.env`
 
 

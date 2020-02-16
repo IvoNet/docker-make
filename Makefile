@@ -70,8 +70,30 @@ build-nc: ## Build all the images in the project as 'latest' (no-cache)
 tag: ## Tags all the images to the VERSION as found int makefile.env
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
-		docker tag $(REGISTRY)/$$img:latest $(REGISTRY)/$$img:$(VERSION) ;    \
+	    versionfile="$$img/VERSION";                                          \
+		MY_APP_VERSION=$(VERSION);                                            \
+		if [ -a "$$versionfile" ];                                            \
+		then                                                                  \
+			MY_APP_VERSION=`cat $$versionfile`;                               \
+		    echo "$(REGISTRY)/$$img version override: $$MY_APP_VERSION";      \
+		fi;                                                                   \
+		docker tag $(REGISTRY)/$$img:latest $(REGISTRY)/$$img:$$MY_APP_VERSION;\
 	done
+
+poc: ## Tags all the images to the VERSION as found int makefile.env
+	@for img in $(IMAGES);                                                    \
+	do                                                                        \
+	    versionfile="$$img/VERSION";                                          \
+	    echo $$versionfile;                                                   \
+		MY_APP_VERSION=$(VERSION);                                            \
+		echo $$MY_APP_VERSION;                                                \
+		if [ -a "$$versionfile" ];                                            \
+		then                                                                  \
+			MY_APP_VERSION=`cat $$versionfile`;                               \
+		    echo "Poject version override: $$MY_APP_VERSION";                 \
+		fi;                                                                   \
+	done
+
 
 version: build tag ## Builds and versions all the images in this project
 
@@ -87,7 +109,14 @@ publish-latest:
 
 publish-version: tag
 	@for img in $(IMAGES); do                                                 \
-		docker push $(REGISTRY)/$$img:$(VERSION) ;                            \
+	    versionfile="$$img/VERSION";                                          \
+		MY_APP_VERSION=$(VERSION);                                            \
+		if [ -a "$$versionfile" ];                                            \
+		then                                                                  \
+			MY_APP_VERSION=`cat $$versionfile`;                               \
+		    echo "$(REGISTRY)/$$img version override: $$MY_APP_VERSION";      \
+		fi;                                                                   \
+		docker push $(REGISTRY)/$$img:$$MY_APP_VERSION ;                      \
 	done
 
 clean: rm-containers rmi-version rmi-latest ## Cleans up the mess you made
@@ -105,13 +134,19 @@ deep-clean: clean rmi-base-images ## same as clean plus removal of base images
 	@echo "Also removes base images";
 
 rmi-version: ## Removes all the local images from this project with the defined version
-	@echo Removing all images with version $(VERSION) from this project;      \
+	@echo Removing all current versions for this project;                     \
 	for cont in $$(docker images -q);                                         \
 	do                                                                        \
 		cname=$$(docker inspect $$cont|jq '.[0].RepoTags[0]'|sed 's/\"//g');  \
 		for img in $(IMAGES);                                                 \
 		do                                                                    \
-			if [ $(REGISTRY)/$$img:$(VERSION) == $$cname ];                   \
+			versionfile="$$img/VERSION";                                      \
+			MY_APP_VERSION=$(VERSION);                                        \
+			if [ -a "$$versionfile" ];                                        \
+			then                                                              \
+				MY_APP_VERSION=`cat $$versionfile`;                           \
+			fi;                                                               \
+			if [ $(REGISTRY)/$$img:$$MY_APP_VERSION == $$cname ];             \
 			then                                                              \
 				docker rmi $$cname 2>/dev/null;                               \
 			fi                                                                \
