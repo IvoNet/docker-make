@@ -110,8 +110,8 @@ version: ## Prints all project versions (created if tagged)
 		if [ -a "$$versionfile" ];                                            \
 		then                                                                  \
 			MY_APP_VERSION=`cat $$versionfile`;                               \
-		    echo "$(REGISTRY)/$$img:$$MY_APP_VERSION";                         \
 		fi;                                                                   \
+		echo "$(REGISTRY)/$$img:$$MY_APP_VERSION";                            \
 	done
 
 
