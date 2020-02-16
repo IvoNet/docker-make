@@ -102,7 +102,7 @@ tag: ## Tags all the images to the VERSION as found int makefile.env
 		docker tag $(REGISTRY)/$$img:latest $(REGISTRY)/$$img:$$MY_APP_VERSION;\
 	done
 
-version: ## Prints all project versions (created if tagged)
+versioning: ## Prints all project versions (created if tagged/released)
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
 	    versionfile="$$img/VERSION";                                          \
@@ -114,8 +114,7 @@ version: ## Prints all project versions (created if tagged)
 		echo "$(REGISTRY)/$$img:$$MY_APP_VERSION";                            \
 	done
 
-
-versions: build tag ## Builds and versions all the images in this project
+version: build tag ## Builds and versions all the images in this project
 
 release: build-nc publish ## Make a release by building and publishing the `{version}` and `latest` tagged containers to the registry
 
