@@ -57,7 +57,7 @@ $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	then                                                                      \
 		MY_APP_VERSION=`cat $$versionfile`;                                   \
 	fi;                                                                       \
-	docker build --no-cache -t $(REGISTRY)/$$project $(subst :,/,$$project);  \
+	docker build -t $(REGISTRY)/$$project $(subst :,/,$$project);  \
 	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$$MY_APP_VERSION; \
 	docker push $(REGISTRY)/$$project:latest;                                 \
 	docker push $(REGISTRY)/$$project:$$MY_APP_VERSION;
