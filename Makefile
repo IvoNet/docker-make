@@ -51,10 +51,16 @@ $(IMAGES): %: ## builds a specific project by its directory name
 
 $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	@project=$(subst release-,,$@);                                           \
+	versionfile="$$project/VERSION";                                          \
+	MY_APP_VERSION=$(VERSION);                                                \
+	if [ -a "$$versionfile" ];                                                \
+	then                                                                      \
+		MY_APP_VERSION=`cat $$versionfile`;                                   \
+	fi;                                                                       \
 	docker build --no-cache -t $(REGISTRY)/$$project $(subst :,/,$$project);  \
-	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$(VERSION); \
+	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$$MY_APP_VERSION; \
 	docker push $(REGISTRY)/$$project:latest;                                 \
-	docker push $(REGISTRY)/$$project:$(VERSION);
+	docker push $(REGISTRY)/$$project:$$MY_APP_VERSION;
 
 $(TAG_IMAGE_TARGETS): %: ## tag a single image from the project
 	@project=$(subst tag-,,$@);                                               \
