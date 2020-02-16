@@ -74,9 +74,6 @@ $(TAG_IMAGE_TARGETS): %: ## tag a single image from the project
 	echo "Tagging $$project as: $(REGISTRY)/$$project:$$MY_APP_VERSION";      \
 	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$$MY_APP_VERSION;
 
-
-all: build  ## Build all the images in the project as 'latest'
-
 build: ## Build all the images in the project as 'latest'
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
@@ -118,7 +115,6 @@ version: build tag ## Builds and versions all the images in this project
 
 release: build-nc publish ## Make a release by building and publishing the `{version}` and `latest` tagged containers to the registry
 
-# Docker publish
 publish: publish-latest publish-version ## Publish the `{version}` and `latest` tagged containers to the registry
 
 publish-latest:
@@ -138,27 +134,24 @@ publish-version: tag
 		docker push $(REGISTRY)/$$img:$$MY_APP_VERSION ;                      \
 	done
 
-clean: rm-containers rmi ## Cleans up the mess you made
-	@echo "Cleaning dangling images in general";                              \
-	for img in $(docker images --filter dangling=true -q); do                 \
-		echo Deleting dangling image $$img;                                   \
-		docker rmi $$img ;                                                    \
-	done;                                                                     \
-	for img in $(docker images | grep "^<none>" | awk '{print $3}'); do       \
-	    echo Deleting <none> image $$img;                                     \
-		docker rmi $$img;                                                     \
-	done
+clean: rmc dangling ## Cleans up the mess you made while building and running
 
-deep-clean: clean rmi-base-images ## same as clean plus removal of base images
-	@echo "Also removes base images";
+cleaner: clean rmi ## Same as clean plus the build images
+
+cleanest: cleaner rmi-base-images ## Same as cleaner plus removal of base images
+
+dangling: ## Cleans dangling images in general
+	@echo "Cleaning dangling images";                                         \
+	docker rmi $$(docker images --filter dangling=true -q 2>/dev/null) 2> /dev/null || true; \
+    docker rmi $$(docker images | grep "^<none>" | awk '{print $3}') 2> /dev/null || true; \
 
 rmi: rmi-version rmi-latest ## Removes all images from this project with their versions
 
 rmi-version: ## Removes all the local images from this project with the defined version
 	@echo Removing all current versions for this project;                     \
-	for cont in $$(docker images -q);                                         \
+	for img in $(IMAGES);                                                     \
 	do                                                                        \
-		for img in $(IMAGES);                                                 \
+		for cont in $$(docker images -q|uniq);                                \
 		do                                                                    \
 			versionfile="$$img/VERSION";                                      \
 			MY_APP_VERSION=$(VERSION);                                        \
@@ -176,7 +169,7 @@ rmi-version: ## Removes all the local images from this project with the defined 
 
 rmi-latest: ## Removes all the local images from this project with the 'latest' tag
 	@echo Removing all images with version 'latest' from this project;        \
-	for cont in $$(docker images -q);                                         \
+	for cont in $$(docker images -q|uniq);                                         \
 	do                                                                        \
 		for img in $(IMAGES);                                                 \
 		do                                                                    \
@@ -211,7 +204,7 @@ rmi-base-images: ## Removes all the base (FROM) images used in the projects
 		done                                                                  \
 	done
 
-rm-containers: stop ## Stops and removes running containers based on the images in this project
+rmc: stop ## Stops and removes running containers based on the images in this project
 	@echo Removing all created containers from this project;                  \
 	for cont in $$(docker ps -aq);                                            \
 	do                                                                        \
