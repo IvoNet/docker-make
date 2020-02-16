@@ -21,7 +21,7 @@ cnf ?= makefile.env
 include $(cnf)
 export $(shell sed 's/=.*//' $(cnf))
 
-DOCKERFILES=$(shell find * -type f -name Dockerfile)
+DOCKERFILES=$(shell find * -type f -depth 1 -name Dockerfile)
 IMAGES=$(subst /,\:,$(subst /Dockerfile,,$(DOCKERFILES)))
 RELEASE_IMAGE_TARGETS=$(addprefix release-,$(IMAGES))
 TAG_IMAGE_TARGETS=$(addprefix tag-,$(IMAGES))
