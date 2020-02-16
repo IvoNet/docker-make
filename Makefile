@@ -149,9 +149,9 @@ rmi: rmi-version rmi-latest ## Removes all images from this project with their v
 
 rmi-version: ## Removes all the local images from this project with the defined version
 	@echo Removing all current versions for this project;                     \
-	for img in $(IMAGES);                                                     \
+	for cont in $$(docker images -q|uniq);                                    \
 	do                                                                        \
-		for cont in $$(docker images -q|uniq);                                \
+		for img in $(IMAGES);                                                 \
 		do                                                                    \
 			versionfile="$$img/VERSION";                                      \
 			MY_APP_VERSION=$(VERSION);                                        \
