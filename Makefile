@@ -47,7 +47,17 @@ projects: ## prints which projects have build targets
 	done
 
 $(IMAGES): %: ## builds a specific project by its directory name
-	docker build -t $(REGISTRY)/$@ $(subst :,/,$@)
+	@project=$(subst :,/,$@);                                                 \
+	build_script="$$project/build.sh";                                        \
+	if [ -a "$$build_script" ];                                               \
+	then                                                                      \
+	    echo "Using build.sh script for build...";                            \
+		cd "$$project";                                                       \
+        build.sh;                                                             \
+        cd ..;                                                                \
+    else                                                                      \
+        docker build -t $(REGISTRY)/$@ $(subst :,/,$@);                       \
+    fi
 
 $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	@project=$(subst release-,,$@);                                           \
@@ -57,7 +67,7 @@ $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	then                                                                      \
 		MY_APP_VERSION=`cat $$versionfile`;                                   \
 	fi;                                                                       \
-	docker build -t $(REGISTRY)/$$project $(subst :,/,$$project);  \
+	docker build -t $(REGISTRY)/$$project $(subst :,/,$$project);             \
 	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$$MY_APP_VERSION; \
 	docker push $(REGISTRY)/$$project:latest;                                 \
 	docker push $(REGISTRY)/$$project:$$MY_APP_VERSION;
@@ -86,7 +96,7 @@ build-nc: ## Build all the images in the project as 'latest' (no-cache)
 		docker build --no-cache -t $(REGISTRY)/$$img $(subst :,/,$$img) ;     \
 	done                                                                      \
 
-tag: ## Tags all the images to the VERSION as found int makefile.env
+tag: ## Tags all the images to the VERSION as found in the VERSION or makefile.env file
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
 	    versionfile="$$img/VERSION";                                          \
