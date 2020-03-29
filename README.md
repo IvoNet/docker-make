@@ -14,23 +14,6 @@ brew tap ivonet/cli
 brew install docker-make
 ```
 
-## Usage
-
-```bash
-mkdir -p example-project/hello-world
-cd example-project
-echo "FROM busybox\nCMD [\"echo\", \"Hello, world!\"]" >hello-world/Dockerfile
-echo "VERSION=1.0\nREGISTRY=$USER">makefile.env
-wget https://raw.githubusercontent.com/IvoNet/docker-make/master/Makefile
-wget https://raw.githubusercontent.com/IvoNet/docker-make/master/makefile.env
-# Show help
-make help
-# make all projects
-make build 
-# make single project
-make hello-world
-```
-
 ## Convention
 
 if you use this convention everything should work just fine:
@@ -55,7 +38,23 @@ if you use this convention everything should work just fine:
     └── Dockerfile
     
 ```
+## Usage
 
+example usage:
+
+```bash
+mkdir -p example-project/hello-world
+cd example-project
+echo "FROM busybox\nCMD [\"echo\", \"Hello, world!\"]" >hello-world/Dockerfile
+echo "VERSION=1.0\nREGISTRY=$USER">makefile.env
+docker-make
+# Show help
+make help
+# make all projects
+make build 
+# make single project
+make hello-world
+```
 
 ## VERSION
 
@@ -63,3 +62,7 @@ if you put a `VERSION` file in a folder with a `Dockerfile` and put only a versi
 default version as described in the `makefile.env`
 
 
+## build.sh
+
+if you put a `build.sh` script in the folder with a `Dockerfile` that is the script used by make otherwise it will 
+us a default build command.
