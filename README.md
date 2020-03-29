@@ -62,7 +62,7 @@ if you put a `VERSION` file in a folder with a `Dockerfile` and put only a versi
 default version as described in the `makefile.env`
 
 
-## build.sh
+## pre-make.sh
 
-if you put a `build.sh` script in the folder with a `Dockerfile` that is the script used by make otherwise it will 
-us a default build command.
+if you put a `pre-make.sh` script in the folder with a `Dockerfile` that is the script is run by make before
+running a docker build.

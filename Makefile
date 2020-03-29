@@ -48,16 +48,15 @@ projects: ## prints which projects have build targets
 
 $(IMAGES): %: ## builds a specific project by its directory name
 	@project=$(subst :,/,$@);                                                 \
-	build_script="$$project/build.sh";                                        \
-	if [ -a "$$build_script" ];                                               \
+	preparation_script="$$project/pre-make.sh";                              \
+	if [ -a "$$preparation_script" ];                                         \
 	then                                                                      \
-	    echo "Using build.sh script for build...";                            \
+	    echo "Using pre-make.sh script for preparation...";                  \
 		cd "$$project";                                                       \
-        build.sh;                                                             \
+        pre-make.sh;                                                         \
         cd ..;                                                                \
-    else                                                                      \
-        docker build -t $(REGISTRY)/$@ $(subst :,/,$@);                       \
-    fi
+    fi;                                                                       \
+    docker build -t $(REGISTRY)/$@ $(subst :,/,$@);
 
 $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	@project=$(subst release-,,$@);                                           \
@@ -67,6 +66,14 @@ $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	then                                                                      \
 		MY_APP_VERSION=`cat $$versionfile`;                                   \
 	fi;                                                                       \
+	preparation_script="$$project/pre-make.sh";                              \
+	if [ -a "$$preparation_script" ];                                         \
+	then                                                                      \
+	    echo "Using pre-make.sh script for preparation...";                  \
+		cd "$$project";                                                       \
+        pre-make.sh;                                                         \
+        cd ..;                                                                \
+    fi;                                                                       \
 	docker build -t $(REGISTRY)/$$project $(subst :,/,$$project);             \
 	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$$MY_APP_VERSION; \
 	docker push $(REGISTRY)/$$project:latest;                                 \
@@ -87,13 +94,31 @@ $(TAG_IMAGE_TARGETS): %: ## tag a single image from the project
 build: ## Build all the images in the project as 'latest'
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
-		docker build -t $(REGISTRY)/$$img $(subst :,/,$$img) ;                \
+	    project=$(subst :,/,$$img);                                           \
+		preparation_script="$$project/pre-make.sh";                          \
+		if [ -a "$$preparation_script" ];                                     \
+		then                                                                  \
+		    echo "Using pre-make.sh script for preparation...";              \
+			cd "$$project";                                                   \
+	        pre-make.sh;                                                     \
+	        cd ..;                                                            \
+	    fi;                                                                   \
+		docker build -t $(REGISTRY)/$$img $(subst :,/,$$project);             \
 	done
 
 build-nc: ## Build all the images in the project as 'latest' (no-cache)
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
-		docker build --no-cache -t $(REGISTRY)/$$img $(subst :,/,$$img) ;     \
+	    project=$(subst :,/,$$img);                                           \
+		preparation_script="$$project/pre-make.sh";                          \
+		if [ -a "$$preparation_script" ];                                     \
+		then                                                                  \
+		    echo "Using pre-make.sh script for preparation...";              \
+			cd "$$project";                                                   \
+	        pre-make.sh;                                                     \
+	        cd ..;                                                            \
+	    fi;                                                                   \
+		docker build --no-cache -t $(REGISTRY)/$$img $(subst :,/,$$project);  \
 	done                                                                      \
 
 tag: ## Tags all the images to the VERSION as found in the VERSION or makefile.env file
