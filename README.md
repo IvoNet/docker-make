@@ -64,5 +64,5 @@ default version as described in the `makefile.env`
 
 ## pre-make.sh
 
-if you put a `pre-make.sh` script in the folder with a `Dockerfile` that is the script is run by make before
+if you put a `pre-make.sh` script in the folder with a `Dockerfile` that is the script that is run by make before
 running a docker build.
