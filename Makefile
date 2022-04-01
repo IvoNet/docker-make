@@ -25,7 +25,9 @@ DOCKERFILES=$(shell find * -type f -depth 1 -name Dockerfile)
 IMAGES=$(subst /,\:,$(subst /Dockerfile,,$(DOCKERFILES)))
 RELEASE_IMAGE_TARGETS=$(addprefix release-,$(IMAGES))
 TAG_IMAGE_TARGETS=$(addprefix tag-,$(IMAGES))
+MULTI_IMAGE_TARGETS=$(addprefix multi-,$(IMAGES))
 VERSION_IMAGE_TARGETS=$(addprefix version-,$(IMAGES))
+NO_CACHE_TARGETS=$(addprefix nc-,$(IMAGES))
 
 # HELP
 # This will output the help for each task
@@ -44,19 +46,34 @@ projects: ## prints which projects have build targets
 		echo $$fo | awk '{printf "\033[36m%-30s\033[0m Builds %s\n", $$1, $$1}';          \
 		echo $$fo | awk '{printf "\033[36mtag-%-26s\033[0m Tags %s\n", $$1, $$1}';        \
 		echo $$fo | awk '{printf "\033[36mrelease-%-22s\033[0m Releases %s\n", $$1, $$1}';\
+		echo $$fo | awk '{printf "\033[36mmulti-%-24s\033[0m multi platform release %s\n", $$1, $$1}';\
+		echo $$fo | awk '{printf "\033[36mnc-%-27s\033[0m no cache build %s\n", $$1, $$1}';\
 	done
 
 $(IMAGES): %: ## builds a specific project by its directory name
 	@project=$(subst :,/,$@);                                                 \
-	preparation_script="$$project/pre-make.sh";                              \
+	preparation_script="$$project/pre-make.sh";                               \
 	if [ -a "$$preparation_script" ];                                         \
 	then                                                                      \
-	    echo "Using pre-make.sh script for preparation...";                  \
+	    echo "Using pre-make.sh script for preparation...";                   \
 		cd "$$project";                                                       \
-        pre-make.sh;                                                         \
+        pre-make.sh;                                                          \
         cd ..;                                                                \
     fi;                                                                       \
     docker build -t $(REGISTRY)/$@ $(subst :,/,$@);
+
+$(NO_CACHE_TARGETS): %: ## builds a specific project by its directory name in no-cache mode
+	@project=$(subst nc-,,$@);                                                \
+	preparation_script="$$project/pre-make.sh";                               \
+	if [ -a "$$preparation_script" ];                                         \
+	then                                                                      \
+	    echo "Using pre-make.sh script for preparation...";                   \
+		cd "$$project";                                                       \
+        pre-make.sh;                                                          \
+        cd ..;                                                                \
+    fi;                                                                       \
+    docker builder prune -f; \
+    docker build --no-cache -t $(REGISTRY)/$$project $$project;
 
 $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	@project=$(subst release-,,$@);                                           \
@@ -78,6 +95,29 @@ $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$$MY_APP_VERSION; \
 	docker push $(REGISTRY)/$$project:latest;                                 \
 	docker push $(REGISTRY)/$$project:$$MY_APP_VERSION;
+
+$(MULTI_IMAGE_TARGETS): %: ## release a multi-platform image from the project
+	@project=$(subst multi-,,$@);                                             \
+	versionfile="$$project/VERSION";                                          \
+	MY_APP_VERSION=$(VERSION);                                                \
+	if [ -a "$$versionfile" ];                                                \
+	then                                                                      \
+		MY_APP_VERSION=`cat $$versionfile`;                                   \
+	fi;                                                                       \
+	preparation_script="$$project/pre-make.sh";                               \
+	if [ -a "$$preparation_script" ];                                         \
+	then                                                                      \
+	    echo "Using pre-make.sh script for preparation...";                   \
+		cd "$$project";                                                       \
+        pre-make.sh;                                                          \
+        cd ..;                                                                \
+    fi;                                                                       \
+    docker buildx create --name multibuilder --use;                           \
+    docker buildx inspect --bootstrap;                                        \
+	docker buildx build --platform=linux/amd64,linux/arm64/v8 --push -t $(REGISTRY)/$$project $(subst :,/,$$project);  \
+	docker buildx build --platform=linux/amd64,linux/arm64/v8 --push -t $(REGISTRY)/$$project:$$MY_APP_VERSION $(subst :,/,$$project);  \
+	docker buildx rm -f multibuilder;                                         \
+	docker pull $(REGISTRY)/$$project:$$MY_APP_VERSION;
 
 $(TAG_IMAGE_TARGETS): %: ## tag a single image from the project
 	@project=$(subst tag-,,$@);                                               \
@@ -170,6 +210,7 @@ publish-version: tag
 	done
 
 clean: rmc dangling ## Cleans up the mess you made while building and running
+	@docker builder prune -f;
 
 cleaner: clean rmi ## Same as clean plus the build images
 
