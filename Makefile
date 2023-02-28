@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Ivo Woltring <WebMaster@ivonet.nl>
+# Copyright 2022 Ivo Woltring <WebMaster@ivonet.nl>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ IMAGES=$(subst /,\:,$(subst /Dockerfile,,$(DOCKERFILES)))
 RELEASE_IMAGE_TARGETS=$(addprefix release-,$(IMAGES))
 TAG_IMAGE_TARGETS=$(addprefix tag-,$(IMAGES))
 MULTI_IMAGE_TARGETS=$(addprefix multi-,$(IMAGES))
+X86_TARGETS=$(addprefix x86-,$(IMAGES))
 VERSION_IMAGE_TARGETS=$(addprefix version-,$(IMAGES))
 NO_CACHE_TARGETS=$(addprefix nc-,$(IMAGES))
 
@@ -48,19 +49,29 @@ projects: ## prints which projects have build targets
 		echo $$fo | awk '{printf "\033[36mrelease-%-22s\033[0m Releases %s\n", $$1, $$1}';\
 		echo $$fo | awk '{printf "\033[36mmulti-%-24s\033[0m multi platform release %s\n", $$1, $$1}';\
 		echo $$fo | awk '{printf "\033[36mnc-%-27s\033[0m no cache build %s\n", $$1, $$1}';\
+		echo $$fo | awk '{printf "\033[36mx86-%-27s\033[0m no cache build %s\n", $$1, $$1}';\
 	done
 
 $(IMAGES): %: ## builds a specific project by its directory name
 	@project=$(subst :,/,$@);                                                 \
 	preparation_script="$$project/pre-make.sh";                               \
-	if [ -a "$$preparation_script" ];                                         \
+	if [ -f "$$preparation_script" ];                                         \
 	then                                                                      \
-	    echo "Using pre-make.sh script for preparation...";                   \
+		echo "Using pre-make.sh script for preparation...";                   \
 		cd "$$project";                                                       \
-        pre-make.sh;                                                          \
-        cd ..;                                                                \
-    fi;                                                                       \
-    docker build -t $(REGISTRY)/$@ $(subst :,/,$@);
+		pre-make.sh;                                                          \
+		cd ..;                                                                \
+	fi;                                                                       \
+	make_script="$$project/make.sh";                                          \
+	if [ -f "$$make_script" ];                                                \
+	then                                                                      \
+		echo "Using the make.sh in stead of standard build";                  \
+		cd "$$project";                                                       \
+		make.sh;                                                              \
+		cd ..;                                                                \
+	else                                                                      \
+		docker build $(ARG) --platform=linux/arm64/v8 -t $(REGISTRY)/$@ $(subst :,/,$@);  \
+	fi;
 
 $(NO_CACHE_TARGETS): %: ## builds a specific project by its directory name in no-cache mode
 	@project=$(subst nc-,,$@);                                                \
@@ -72,7 +83,7 @@ $(NO_CACHE_TARGETS): %: ## builds a specific project by its directory name in no
         pre-make.sh;                                                          \
         cd ..;                                                                \
     fi;                                                                       \
-    docker builder prune -f; \
+    docker builder prune -f;                                                  \
     docker build --no-cache -t $(REGISTRY)/$$project $$project;
 
 $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
@@ -83,12 +94,12 @@ $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	then                                                                      \
 		MY_APP_VERSION=`cat $$versionfile`;                                   \
 	fi;                                                                       \
-	preparation_script="$$project/pre-make.sh";                              \
+	preparation_script="$$project/pre-make.sh";                               \
 	if [ -a "$$preparation_script" ];                                         \
 	then                                                                      \
-	    echo "Using pre-make.sh script for preparation...";                  \
+	    echo "Using pre-make.sh script for preparation...";                   \
 		cd "$$project";                                                       \
-        pre-make.sh;                                                         \
+        pre-make.sh;                                                          \
         cd ..;                                                                \
     fi;                                                                       \
 	docker build -t $(REGISTRY)/$$project $(subst :,/,$$project);             \
@@ -96,7 +107,7 @@ $(RELEASE_IMAGE_TARGETS): %: ## release a single image from the project
 	docker push $(REGISTRY)/$$project:latest;                                 \
 	docker push $(REGISTRY)/$$project:$$MY_APP_VERSION;
 
-$(MULTI_IMAGE_TARGETS): %: ## release a multi-platform image from the project
+$(MULTI_IMAGE_TARGETS): %: buildx ## release a multi-platform image from the project
 	@project=$(subst multi-,,$@);                                             \
 	versionfile="$$project/VERSION";                                          \
 	MY_APP_VERSION=$(VERSION);                                                \
@@ -112,12 +123,29 @@ $(MULTI_IMAGE_TARGETS): %: ## release a multi-platform image from the project
         pre-make.sh;                                                          \
         cd ..;                                                                \
     fi;                                                                       \
-    docker buildx create --name multibuilder --use;                           \
-    docker buildx inspect --bootstrap;                                        \
-	docker buildx build --platform=linux/amd64,linux/arm64/v8 --push -t $(REGISTRY)/$$project $(subst :,/,$$project);  \
-	docker buildx build --platform=linux/amd64,linux/arm64/v8 --push -t $(REGISTRY)/$$project:$$MY_APP_VERSION $(subst :,/,$$project);  \
-	docker buildx rm -f multibuilder;                                         \
-	docker pull $(REGISTRY)/$$project:$$MY_APP_VERSION;
+	docker buildx build $(ARG) --no-cache --platform=linux/amd64,linux/arm64/v8 --push -t $(REGISTRY)/$$project $(subst :,/,$$project);  \
+	docker buildx build $(ARG) --no-cache --platform=linux/amd64,linux/arm64/v8 --push -t $(REGISTRY)/$$project:$$MY_APP_VERSION $(subst :,/,$$project); \
+	docker pull $(REGISTRY)/$$project:latest;
+
+$(X86_TARGETS): %: buildx ## release a native x86 image from the project
+	@project=$(subst x86-,,$@);                                               \
+	versionfile="$$project/VERSION";                                          \
+	MY_APP_VERSION=$(VERSION);                                                \
+	if [ -a "$$versionfile" ];                                                \
+	then                                                                      \
+		MY_APP_VERSION=`cat $$versionfile`;                                   \
+	fi;                                                                       \
+	preparation_script="$$project/pre-make.sh";                               \
+	if [ -a "$$preparation_script" ];                                         \
+	then                                                                      \
+	    echo "Using pre-make.sh script for preparation...";                   \
+		cd "$$project";                                                       \
+        pre-make.sh;                                                          \
+        cd ..;                                                                \
+    fi;                                                                       \
+    docker buildx prune -f;                                                   \
+	docker buildx build --platform=linux/amd64 --push -t $(REGISTRY)/$$project $(subst :,/,$$project);  \
+	docker buildx build --platform=linux/amd64 --push -t $(REGISTRY)/$$project:$$MY_APP_VERSION $(subst :,/,$$project);
 
 $(TAG_IMAGE_TARGETS): %: ## tag a single image from the project
 	@project=$(subst tag-,,$@);                                               \
@@ -131,26 +159,47 @@ $(TAG_IMAGE_TARGETS): %: ## tag a single image from the project
 	echo "Tagging $$project as: $(REGISTRY)/$$project:$$MY_APP_VERSION";      \
 	docker tag $(REGISTRY)/$$project:latest $(REGISTRY)/$$project:$$MY_APP_VERSION;
 
+buildx: ## initialize multi-platform builder
+	 @if [ `docker ps |grep localremote_builder|wc -l` -ne 1 ];               \
+	 then                                                                     \
+		docker buildx create --name localremote_builder --node localremote_builder --platform linux/arm64,linux/riscv64,linux/ppc64le,linux/s390x,linux/mips64le,linux/mips64,linux/arm/v7,linux/arm/v6 --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=10000000 --driver-opt env.BUILDKIT_STEP_LOG_MAX_SPEED=10000000; \
+		docker buildx create --name localremote_builder --append --node intelarch --platform linux/amd64,linux/386 ssh://nas --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=10000000 --driver-opt env.BUILDKIT_STEP_LOG_MAX_SPEED=10000000; \
+		docker buildx use localremote_builder;                                \
+		docker buildx inspect --bootstrap;                                    \
+	fi
+
+prune: ## Prune
+	@echo "Pruning the docker system...";                                     \
+	docker system prune -f;                                                   \
+	docker buildx prune -f;
+
+
+rmbuildx: prune ## removes the multi-platform builder
+	@if [ `docker ps |grep localremote_builder|wc -l` -eq 1 ];                \
+	then                                                                      \
+		docker buildx rm -f localremote_builder;                              \
+	fi
+
 build: ## Build all the images in the project as 'latest'
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
 	    project=$(subst :,/,$$img);                                           \
-		preparation_script="$$project/pre-make.sh";                          \
+		preparation_script="$$project/pre-make.sh";                           \
 		if [ -a "$$preparation_script" ];                                     \
 		then                                                                  \
-		    echo "Using pre-make.sh script for preparation...";              \
+		    echo "Using pre-make.sh script for preparation...";               \
 			cd "$$project";                                                   \
-	        pre-make.sh;                                                     \
+	        pre-make.sh;                                                      \
 	        cd ..;                                                            \
 	    fi;                                                                   \
-		docker build -t $(REGISTRY)/$$img $(subst :,/,$$project);             \
+		docker build  -t $(REGISTRY)/$$img $(subst :,/,$$project);             \
 	done
 
 build-nc: ## Build all the images in the project as 'latest' (no-cache)
 	@for img in $(IMAGES);                                                    \
 	do                                                                        \
 	    project=$(subst :,/,$$img);                                           \
-		preparation_script="$$project/pre-make.sh";                          \
+		preparation_script="$$project/pre-make.sh";                           \
 		if [ -a "$$preparation_script" ];                                     \
 		then                                                                  \
 		    echo "Using pre-make.sh script for preparation...";              \
@@ -210,7 +259,8 @@ publish-version: tag
 	done
 
 clean: rmc dangling ## Cleans up the mess you made while building and running
-	@docker builder prune -f;
+	@docker builder prune -f; \
+	docker images;
 
 cleaner: clean rmi ## Same as clean plus the build images
 
