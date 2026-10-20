@@ -1,7 +1,8 @@
 # Docker Makefile project
 
-This project provides a convention over configuration
-universal build `Makefile` for [docker](https://www.docker.com/) projects.
+This project provides a convention-over-configuration build `Makefile` for
+[Podman](https://podman.io/) projects. It builds from standard `Dockerfile`s
+using the Podman command-line interface.
 
 ## Blog
 
@@ -50,7 +51,7 @@ echo "VERSION=1.0\nREGISTRY=$USER">makefile.env
 docker-make
 # Show help
 make help
-# make all projects
+# make all projects with Podman
 make build 
 # make single project
 make hello-world
@@ -58,11 +59,17 @@ make hello-world
 
 ## VERSION
 
-if you put a `VERSION` file in a folder with a `Dockerfile` and put only a version in it it will override the
+if you put a `VERSION` file in a folder with a `Dockerfile` and put only a version in it, it will override the
 default version as described in the `makefile.env`
 
 
 ## pre-make.sh
 
-if you put a `pre-make.sh` script in the folder with a `Dockerfile` that is the script that is run by make before
-running a docker build.
+if you put a `pre-make.sh` script in the folder with a `Dockerfile`, make runs
+that script before running a Podman build.
+
+## Podman
+
+Install and configure Podman before using the Makefile. The `multi-<project>`
+target builds and pushes a multi-platform manifest for `linux/amd64` and
+`linux/arm64/v8`; it does not require Docker Buildx or a separate builder.
